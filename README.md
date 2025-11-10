@@ -15,7 +15,9 @@ This PowerShell script is a proof-of-concept (PoC) demonstrating various known U
 - Launches the corresponding system executable tied to each bypass method.
 - Cleans up registry entries after execution.
 - Accepts a custom command to run elevated (default is `cmd.exe`).
-- Includes a method to create a SYSTEM process.
+- Includes a method to create a ***SYSTEM*** process.
+- Runs UAC Bypass with ***RUNASINVOKER*** variable.
+- Uses ***UAC-Prompt-Bombing Attack*** seen here: [Article: New Botnet Emerges from the Shadows: NightshadeC2](https://www.esentire.com/blog/new-botnet-emerges-from-the-shadows-nightshadec2)
 
 ## Supported Methods
 
@@ -53,6 +55,12 @@ powershell.exe -ExecutionPolicy Bypass -NoProfile -Command "& {.\UAChaos.ps1 -Me
 
 # Run a single method (computerdefaults) with command payload.exe as SYSTEM (Hidden)
 .\UAChaos.ps1 -Method computerdefaults -Command "C:\Temp\payload.exe" -GetSystem
+
+# Run UAC-Prompt-Bombing File. No Commands yet!
+.\UAChaos.ps1 -UACBombing -Command "C:\Temp\payload_cmd.exe"
+
+# Run RUNASINVOKER UAC Bypass with Commands
+.\UAChaos.ps1 -RunAsInvoker -Command "mmc"
 
 # Run all methods sequentially
 .\UAChaos.ps1 -Method all
